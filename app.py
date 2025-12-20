@@ -15,16 +15,26 @@ import ui_config
 # Set page configuration
 st.set_page_config(page_title="Earnomly", layout="wide", page_icon=None)
 
-# Custom CSS for better styling
+# Apply custom styles
 ui_config.apply_styles()
 
-# Title and Introduction
+# --- Plotly Theme Configuration ---
+PLOT_COLORS = ['#6366F1', '#8B5CF6', '#A78BFA', '#C4B5FD']
+PLOT_LAYOUT = dict(
+    paper_bgcolor='rgba(0,0,0,0)',
+    plot_bgcolor='rgba(0,0,0,0)',
+    font=dict(family='Inter, sans-serif', color='#FAFAFA', size=12),
+    margin=dict(t=20, b=40, l=40, r=20),
+    xaxis=dict(gridcolor='rgba(255,255,255,0.04)', zerolinecolor='rgba(255,255,255,0.04)'),
+    yaxis=dict(gridcolor='rgba(255,255,255,0.04)', zerolinecolor='rgba(255,255,255,0.04)'),
+)
 
-st.title("Earnomly")
+# Title and Introduction
+st.markdown("<h1>Earnomly</h1>", unsafe_allow_html=True)
 st.markdown("""
-<div class="glass-card">
-    <p>This professional dashboard provides advanced socioeconomic analysis and predictive modeling for the <strong>Adult Income Dataset</strong>.</p>
-</div>
+    <p class="intro-text">
+        Advanced socioeconomic analysis and predictive modeling platform for the Adult Income Dataset.
+    </p>
 """, unsafe_allow_html=True)
 
 # --- Data Loading ---
@@ -35,13 +45,12 @@ def load_data():
                'hours-per-week', 'native-country', 'income']
     try:
         df = pd.read_csv('adultData/adult.data', names=columns, na_values='?', skipinitialspace=True)
-        # Impute missing values
         for col in ['workclass', 'occupation', 'native-country']:
             df[col] = df[col].fillna(df[col].mode()[0])
         df.drop_duplicates(inplace=True)
         return df
     except FileNotFoundError:
-        st.error("Error: 'adultData/adult.data' not found. Please ensure the dataset is in the correct directory.")
+        st.error("Dataset not found. Please ensure 'adultData/adult.data' exists.")
         return pd.DataFrame()
 
 df = load_data()
@@ -54,16 +63,11 @@ if df.empty:
 def prepare_data_for_model(df):
     le = LabelEncoder()
     df_model = df.copy()
-    # Encode target
     df_model['income_encoded'] = le.fit_transform(df_model['income'])
     df_model = df_model.drop('income', axis=1)
-    
-    # One-Hot Encoding
     df_encoded = pd.get_dummies(df_model, drop_first=True)
-    
     X = df_encoded.drop('income_encoded', axis=1)
     y = df_encoded['income_encoded']
-    
     return X, y, le, X.columns
 
 @st.cache_resource
@@ -71,7 +75,6 @@ def calculate_wcss(X_scaled):
     wcss = []
     k_range = range(1, 11)
     for k in k_range:
-        # Optimization: Reduced n_init to 3 for faster visual rendering
         kmeans = KMeans(n_clusters=k, random_state=42, n_init=3)
         kmeans.fit(X_scaled)
         wcss.append(kmeans.inertia_)
@@ -79,148 +82,122 @@ def calculate_wcss(X_scaled):
 
 # --- Sidebar Navigation ---
 with st.sidebar:
-    st.markdown("""
-        <div class="sidebar-brand" style='display:flex; align-items:center; padding: 20px; gap:12px; border:none; background:transparent;'>
-            <div style='width:40px; height:40px; background:linear-gradient(135deg, #10B981, #3B82F6); border-radius:12px; display:flex; align-items:center; justify-content:center; color:white; font-weight:bold; font-size:1.4rem; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);'>E</div>
-            <div>
-                <h2 style='margin:0; color:white !important; font-size:1.3rem !important; font-weight:800 !important;'>Earnomly</h2>
-                <div style='width:20px; height:2px; background:#10B981; margin-top:2px;'></div>
-            </div>
-        </div>
-        <div style='margin-bottom: 2rem;'></div>
-    """, unsafe_allow_html=True)
+    ui_config.render_sidebar_brand()
     
-    st.markdown("<p class='nav-category' style='margin-left:20px; opacity:0.5; font-size:0.7rem; letter-spacing:0.1em; color:#9CA3AF;'>MAIN DASHBOARD</p>", unsafe_allow_html=True)
+    st.markdown("<p class='nav-category'>Navigation</p>", unsafe_allow_html=True)
     options = st.radio("Navigation", 
-        ["Overview", "Analytics", "Intelligence", "Clusters", "Predictor"],
+        ["Data Overview", "Data Analysis", "Supervised Learning", "Unsupervised Learning", "Income Predictor"],
         label_visibility="collapsed")
 
 # --- 1. Data Overview ---
-if "Overview" in options:
+if "Data Overview" in options:
     st.markdown("<h1>Dashboard Overview</h1>", unsafe_allow_html=True)
     
-    # Custom Metric Cards with Trends
+    # Metric Cards
     col1, col2, col3 = st.columns(3)
     with col1:
-        st.markdown(f"""
-        <div class="metric-card">
-            <div style='display:flex; justify-content:space-between; align-items:center;'>
-                <p style='margin:0; color:var(--text-secondary); font-size:0.8rem; text-transform:uppercase;'>Total Population</p>
-                <span style='color:#10B981; font-size:0.7rem; font-weight:bold;'>+12%</span>
-            </div>
-            <h2 style='margin:10px 0;'>{df.shape[0]:,}</h2>
-            <div style='width:100%; height:4px; background:rgba(255,255,255,0.05); border-radius:2px; overflow:hidden;'>
-                <div style='width:70%; height:100%; background:#10B981;'></div>
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
+        st.markdown(ui_config.render_metric_card(
+            label="Total Population",
+            value=f"{df.shape[0]:,}",
+            badge_text="+12%",
+            badge_type="success",
+            progress=70,
+            icon_name="population"
+        ), unsafe_allow_html=True)
+    
     with col2:
-        st.markdown(f"""
-        <div class="metric-card">
-            <div style='display:flex; justify-content:space-between; align-items:center;'>
-                <p style='margin:0; color:var(--text-secondary); font-size:0.8rem; text-transform:uppercase;'>Features Analyzed</p>
-                <span style='color:#3B82F6; font-size:0.7rem; font-weight:bold;'>STABLE</span>
-            </div>
-            <h2 style='margin:10px 0;'>{df.shape[1]}</h2>
-            <div style='width:100%; height:4px; background:rgba(255,255,255,0.05); border-radius:2px; overflow:hidden;'>
-                <div style='width:100%; height:100%; background:#3B82F6;'></div>
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
+        st.markdown(ui_config.render_metric_card(
+            label="Features Analyzed",
+            value=str(df.shape[1]),
+            badge_text="Stable",
+            badge_type="info",
+            progress=100,
+            icon_name="features"
+        ), unsafe_allow_html=True)
+    
     with col3:
-        st.markdown(f"""
-        <div class="metric-card">
-            <div style='display:flex; justify-content:space-between; align-items:center;'>
-                <p style='margin:0; color:var(--text-secondary); font-size:0.8rem; text-transform:uppercase;'>Missing Values</p>
-                <span style='color:#8B5CF6; font-size:0.7rem; font-weight:bold;'>CLEAN</span>
-            </div>
-            <h2 style='margin:10px 0;'>0.0%</h2>
-            <div style='width:100%; height:4px; background:rgba(255,255,255,0.05); border-radius:2px; overflow:hidden;'>
-                <div style='width:100%; height:100%; background:#8B5CF6;'></div>
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
+        st.markdown(ui_config.render_metric_card(
+            label="Missing Values",
+            value="0.0%",
+            badge_text="Clean",
+            badge_type="accent",
+            progress=100,
+            icon_name="clean"
+        ), unsafe_allow_html=True)
 
+    st.markdown("<div style='height: 1.5rem;'></div>", unsafe_allow_html=True)
 
     with st.container(border=True):
-        st.subheader("Sample System Data")
+        st.markdown("<h2>Sample Data</h2>", unsafe_allow_html=True)
         st.dataframe(df.head(10), use_container_width=True)
 
-    
     with st.container(border=True):
-        st.subheader("Statistical Summary")
+        st.markdown("<h2>Statistical Summary</h2>", unsafe_allow_html=True)
         st.dataframe(df.describe(), use_container_width=True)
     
     with st.container(border=True):
-        st.subheader("Missing Values")
+        st.markdown("<h2>Data Quality</h2>", unsafe_allow_html=True)
         missing = df.isnull().sum()
-        st.dataframe(missing[missing > 0], use_container_width=True)
-    
+        if missing[missing > 0].empty:
+            st.markdown("<p class='intro-text'>No missing values detected in the dataset.</p>", unsafe_allow_html=True)
+        else:
+            st.dataframe(missing[missing > 0], use_container_width=True)
 
-# --- 2. Visualizations (Plotly) ---
-elif "Analytics" in options:
+# --- 2. Data Analysis (Plotly) ---
+elif "Data Analysis" in options:
     st.markdown("<h1>Exploratory Data Analysis</h1>", unsafe_allow_html=True)
     
     col1, col2 = st.columns(2)
     
     with col1:
         with st.container(border=True):
-            st.subheader("Income Distribution")
+            st.markdown("<h2>Income Distribution</h2>", unsafe_allow_html=True)
             counts = df['income'].value_counts()
-            fig = px.pie(names=counts.index, values=counts.values, hole=0.6, 
-                        color_discrete_sequence=['#7C3AED', '#2D323E'])
+            fig = px.pie(names=counts.index, values=counts.values, hole=0.65, 
+                        color_discrete_sequence=['#6366F1', '#27272A'])
+            fig.update_layout(**PLOT_LAYOUT)
             fig.update_layout(
-                paper_bgcolor='rgba(0,0,0,0)', 
-                plot_bgcolor='rgba(0,0,0,0)', 
-                font=dict(color='#F8FAFC'),
                 showlegend=True,
-                legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+                legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="center", x=0.5)
             )
+            fig.update_traces(textinfo='percent', textfont_size=12)
             st.plotly_chart(fig, use_container_width=True)
     
-        
     with col2:
         with st.container(border=True):
-            st.subheader("Age vs Income")
+            st.markdown("<h2>Age vs Income</h2>", unsafe_allow_html=True)
             fig = px.box(df, x='income', y='age', color='income', 
-                        color_discrete_sequence=['#A78BFA', '#7C3AED'])
-            fig.update_layout(
-                paper_bgcolor='rgba(0,0,0,0)', 
-                plot_bgcolor='rgba(0,0,0,0)', 
-                font=dict(color='#F8FAFC'),
-                showlegend=False
-            )
+                        color_discrete_sequence=['#6366F1', '#8B5CF6'])
+            fig.update_layout(**PLOT_LAYOUT)
+            fig.update_layout(showlegend=False)
             st.plotly_chart(fig, use_container_width=True)
-    
-    
 
     with st.container(border=True):
-        st.subheader("Interactive Correlation Heatmap")
+        st.markdown("<h2>Correlation Matrix</h2>", unsafe_allow_html=True)
         corr = df.select_dtypes(include=[np.number]).corr()
-        fig_corr = px.imshow(corr, text_auto=True, aspect="auto", color_continuous_scale='Purples')
-        fig_corr.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font=dict(color='#F8FAFC'))
+        fig_corr = px.imshow(corr, text_auto='.2f', aspect="auto", 
+                            color_continuous_scale=[[0, '#18181B'], [0.5, '#3F3F46'], [1, '#6366F1']])
+        fig_corr.update_layout(**PLOT_LAYOUT)
+        fig_corr.update_layout(height=400)
         st.plotly_chart(fig_corr, use_container_width=True)
 
-
-
     with st.container(border=True):
-        st.subheader("Workclass vs Income")
+        st.markdown("<h2>Workclass Distribution</h2>", unsafe_allow_html=True)
         fig_bar = px.histogram(df, x='workclass', color='income', barmode='group', 
-                            color_discrete_sequence=['#A78BFA', '#7C3AED'])
-        fig_bar.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font=dict(color='#F8FAFC'))
+                            color_discrete_sequence=['#6366F1', '#8B5CF6'])
+        fig_bar.update_layout(**PLOT_LAYOUT)
         st.plotly_chart(fig_bar, use_container_width=True)
 
-
-# --- 3. Model & Prediction ---
-elif "Intelligence" in options:
-    st.markdown("<h1>Machine Learning Models</h1>", unsafe_allow_html=True)
+# --- 3. Supervised Learning ---
+elif "Supervised Learning" in options:
+    st.markdown("<h1>Supervised Learning</h1>", unsafe_allow_html=True)
+    st.markdown("<p class='intro-text'>Random Forest and Logistic Regression classifiers for income prediction.</p>", unsafe_allow_html=True)
     
     X, y, le, model_columns = prepare_data_for_model(df)
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
     
-    # --- Unified Configuration Section ---
     with st.container(border=True):
-        st.subheader("Model Configuration")
+        st.markdown("<h2>Model Configuration</h2>", unsafe_allow_html=True)
         c_model, c_params, c_action = st.columns([1, 1, 1])
         
         with c_model:
@@ -238,12 +215,11 @@ elif "Intelligence" in options:
                 params['C'] = C_val
 
         with c_action:
-            st.write(f"**Training Samples:** {X_train.shape[0]}")
-            st.write(f"**Testing Samples:** {X_test.shape[0]}")
-            st.markdown("<div style='height: 10px'></div>", unsafe_allow_html=True)
+            st.markdown(f"**Training Samples:** {X_train.shape[0]:,}")
+            st.markdown(f"**Testing Samples:** {X_test.shape[0]:,}")
+            st.markdown("<div style='height: 8px'></div>", unsafe_allow_html=True)
             train_btn = st.button("Start Training", use_container_width=True)
 
-    # --- Training Logic & Results ---
     if train_btn:
         with st.spinner(f"Training {model_choice}..."):
             if model_choice == "Random Forest":
@@ -256,9 +232,8 @@ elif "Intelligence" in options:
             y_pred = model.predict(X_test)
             acc = accuracy_score(y_test, y_pred)
             
-            st.success(f"Model Trained! Accuracy: {acc:.4f}")
+            st.success(f"Model trained successfully. Accuracy: {acc:.4f}")
             
-            # Save model components
             st.session_state['model'] = model
             st.session_state['model_columns'] = model_columns
             st.session_state['le'] = le
@@ -267,98 +242,85 @@ elif "Intelligence" in options:
             st.session_state['y_test'] = y_test
             st.session_state['y_pred'] = y_pred
     
-    # Display Results if Available
     if 'last_acc' in st.session_state:
-        with st.container(border=True):
-            st.subheader("Performance Overview")
-            m1, m2, m3 = st.columns(3)
-            with m1:
-                st.markdown(f"""
-                <div class="metric-card">
-                    <h3>Model Accuracy</h3>
-                    <h2>{st.session_state['last_acc']:.2%}</h2>
-                </div>
-                """, unsafe_allow_html=True)
-            with m2:
-                st.markdown(f"""
-                <div class="metric-card">
-                    <h3>Model Type</h3>
-                    <h2>{st.session_state['model_type']}</h2>
-                </div>
-                """, unsafe_allow_html=True)
-            with m3:
-                st.markdown(f"""
-                <div class="metric-card">
-                    <h3>Test Data Size</h3>
-                    <h2>{len(st.session_state['y_test']):,}</h2>
-                </div>
-                """, unsafe_allow_html=True)
+        st.markdown("<div style='height: 1rem;'></div>", unsafe_allow_html=True)
         
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            st.markdown(ui_config.render_metric_card(
+                label="Model Accuracy",
+                value=f"{st.session_state['last_acc']:.2%}",
+                badge_type="success"
+            ), unsafe_allow_html=True)
+        with col2:
+            st.markdown(ui_config.render_metric_card(
+                label="Model Type",
+                value=st.session_state['model_type'],
+                badge_type="info"
+            ), unsafe_allow_html=True)
+        with col3:
+            st.markdown(ui_config.render_metric_card(
+                label="Test Samples",
+                value=f"{len(st.session_state['y_test']):,}",
+                badge_type="accent"
+            ), unsafe_allow_html=True)
     
-            
     if 'y_test' in st.session_state:
+        st.markdown("<div style='height: 1rem;'></div>", unsafe_allow_html=True)
         col_metrics, col_cm = st.columns(2)
         
         with col_metrics:
             with st.container(border=True):
-                st.subheader("Evaluation Metrics")
+                st.markdown("<h2>Classification Report</h2>", unsafe_allow_html=True)
                 report = classification_report(st.session_state['y_test'], st.session_state['y_pred'], output_dict=True)
-                # Force specific height to align with confusion matrix
-                st.dataframe(pd.DataFrame(report).transpose().style.format("{:.2f}"), use_container_width=True, height=400)
+                st.dataframe(pd.DataFrame(report).transpose().style.format("{:.2f}"), use_container_width=True, height=350)
         
-            
         with col_cm:
             with st.container(border=True):
-                st.subheader("Confusion Matrix")
+                st.markdown("<h2>Confusion Matrix</h2>", unsafe_allow_html=True)
                 cm = confusion_matrix(st.session_state['y_test'], st.session_state['y_pred'])
-                fig_cm = px.imshow(cm, text_auto=True, color_continuous_scale='Purples',
+                fig_cm = px.imshow(cm, text_auto=True, 
+                                color_continuous_scale=[[0, '#18181B'], [0.5, '#3F3F46'], [1, '#6366F1']],
                                 labels=dict(x="Predicted", y="Actual", color="Count"),
                                 x=['<=50K', '>50K'], y=['<=50K', '>50K'])
-                # Force specific height to align with metrics table
-                fig_cm.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font=dict(color='#F8FAFC'), height=400)
+                fig_cm.update_layout(**PLOT_LAYOUT)
+                fig_cm.update_layout(height=350)
                 st.plotly_chart(fig_cm, use_container_width=True)
-        
 
 # --- 4. Unsupervised Learning ---
-elif "Clusters" in options:
+elif "Unsupervised Learning" in options:
     st.markdown("<h1>Unsupervised Learning</h1>", unsafe_allow_html=True)
+    st.markdown("<p class='intro-text'>K-Means Clustering and Principal Component Analysis (PCA) for pattern discovery.</p>", unsafe_allow_html=True)
     
-    # Preprocessing
     X, y, le, _ = prepare_data_for_model(df)
     scaler = StandardScaler()
     X_scaled = scaler.fit_transform(X)
     
-    # --- Configuration Section ---
     with st.container(border=True):
-        st.subheader("Clustering Configuration")
+        st.markdown("<h2>Clustering Configuration</h2>", unsafe_allow_html=True)
         k_val = st.slider("Select K (Clusters)", 2, 10, 3)
 
-    # --- Visualizations Section ---
+    st.markdown("<div style='height: 1rem;'></div>", unsafe_allow_html=True)
+    
     col_elbow, col_pca = st.columns(2)
 
     with col_elbow:
         with st.container(border=True):
-            st.subheader("Elbow Method")
+            st.markdown("<h2>Elbow Method</h2>", unsafe_allow_html=True)
             
             with st.spinner("Calculating optimal clusters..."):
                 wcss, k_range = calculate_wcss(X_scaled)
                 
-            fig_elbow = px.line(x=k_range, y=wcss, markers=True, 
+            fig_elbow = px.line(x=list(k_range), y=wcss, markers=True, 
                                 labels={'x':'Number of Clusters', 'y':'WCSS'})
-            fig_elbow.update_traces(line_color='#7C3AED')
-            fig_elbow.update_layout(
-                paper_bgcolor='rgba(0,0,0,0)', 
-                plot_bgcolor='rgba(0,0,0,0)', 
-                font=dict(color='#F8FAFC'), 
-                margin=dict(t=10, b=10, l=10, r=10), 
-                height=450
-            )
+            fig_elbow.update_traces(line_color='#6366F1', marker_color='#8B5CF6')
+            fig_elbow.update_layout(**PLOT_LAYOUT)
+            fig_elbow.update_layout(height=400)
             st.plotly_chart(fig_elbow, use_container_width=True)
-    
     
     with col_pca:
         with st.container(border=True):
-            st.subheader("PCA Visualization")
+            st.markdown("<h2>PCA Visualization</h2>", unsafe_allow_html=True)
             
             kmeans = KMeans(n_clusters=k_val, random_state=42, n_init=10)
             clusters = kmeans.fit_predict(X_scaled)
@@ -370,35 +332,38 @@ elif "Clusters" in options:
             pca_df['Cluster'] = clusters.astype(str)
             
             fig_pca = px.scatter(pca_df, x='PC1', y='PC2', color='Cluster', 
-                                opacity=0.8, color_discrete_sequence=px.colors.sequential.Purples)
-            fig_pca.update_layout(
-                paper_bgcolor='rgba(0,0,0,0)', 
-                plot_bgcolor='rgba(0,0,0,0)', 
-                font=dict(color='#F8FAFC'), 
-                margin=dict(t=10, b=10, l=10, r=10),
-                height=450
-            )
+                                opacity=0.7, 
+                                color_discrete_sequence=['#6366F1', '#8B5CF6', '#A78BFA', '#C4B5FD', '#DDD6FE'])
+            fig_pca.update_layout(**PLOT_LAYOUT)
+            fig_pca.update_layout(height=400)
             st.plotly_chart(fig_pca, use_container_width=True)
-            
-    # Display variance ratio outside the container to maintain height symmetry
-    st.info(f"Explained Variance Ratio: {pca.explained_variance_ratio_}")
     
+    var_ratio = pca.explained_variance_ratio_
+    st.info(f"Explained Variance Ratio: PC1 = {var_ratio[0]:.3f}, PC2 = {var_ratio[1]:.3f}")
 
-# --- 5. Predict Your Income (New Feature) ---
-elif "Predictor" in options:
-    st.markdown("<h1>Predict Income Level</h1>", unsafe_allow_html=True)
+# --- 5. Income Predictor ---
+elif "Income Predictor" in options:
+    st.markdown("<h1>Income Prediction</h1>", unsafe_allow_html=True)
+    
+    # Education to education-num mapping (based on dataset)
+    edu_num_map = {
+        'Preschool': 1, '1st-4th': 2, '5th-6th': 3, '7th-8th': 4, '9th': 5,
+        '10th': 6, '11th': 7, '12th': 8, 'HS-grad': 9, 'Some-college': 10,
+        'Assoc-voc': 11, 'Assoc-acdm': 12, 'Bachelors': 13, 'Masters': 14,
+        'Prof-school': 15, 'Doctorate': 16
+    }
     
     with st.container(border=True):
         if 'model' not in st.session_state:
-            st.warning("Please train a model in the 'Model & Prediction' tab first.")
+            st.warning("Please train a model in the Supervised Learning section first.")
         else:
-            st.write("Enter your details below to see what the model predicts.")
+            st.markdown("<p class='intro-text'>Enter your details below to predict income level.</p>", unsafe_allow_html=True)
             
             with st.form("prediction_form"):
                 col1, col2 = st.columns(2)
                 
                 with col1:
-                    age = st.number_input("Age", 17, 90, 30)
+                    age = st.number_input("Age", 17, 90, 45)
                     workclass = st.selectbox("Workclass", df['workclass'].unique())
                     education = st.selectbox("Education", df['education'].unique())
                     marital_status = st.selectbox("Marital Status", df['marital-status'].unique())
@@ -408,20 +373,19 @@ elif "Predictor" in options:
                 
                 with col2:
                     sex = st.selectbox("Sex", df['sex'].unique())
-                    capital_gain = st.number_input("Capital Gain", 0, 100000, 0)
+                    capital_gain = st.number_input("Capital Gain", 0, 100000, 5000)
                     capital_loss = st.number_input("Capital Loss", 0, 5000, 0)
-                    hours_per_week = st.number_input("Hours per Week", 1, 100, 40)
+                    hours_per_week = st.number_input("Hours per Week", 1, 100, 50)
                     native_country = st.selectbox("Native Country", df['native-country'].unique())
                     
-                    # Hidden/Default fields (set to mean/defaults)
-                    education_num = 10 
+                    # Dynamic education-num based on education selection
+                    education_num = edu_num_map.get(education, 10)
                     fnlwgt = df['fnlwgt'].mean() 
                 
-                st.markdown("<br>", unsafe_allow_html=True)
-                submit = st.form_submit_button("Predict")
+                st.markdown("<div style='height: 1rem;'></div>", unsafe_allow_html=True)
+                submit = st.form_submit_button("Predict", use_container_width=True)
                 
             if submit:
-                # Create a DataFrame for user input
                 input_data = {
                     'age': [age], 'workclass': [workclass], 'fnlwgt': [fnlwgt],
                     'education': [education], 'education-num': [education_num],
@@ -433,40 +397,53 @@ elif "Predictor" in options:
                 
                 input_df = pd.DataFrame(input_data)
                 
-                # One-Hot Encode and Align Columns
-                input_encoded = pd.get_dummies(input_df)
+                # Proper encoding: concatenate with original data (without income), encode, extract input row
+                df_without_income = df.drop('income', axis=1)
+                combined = pd.concat([df_without_income, input_df], ignore_index=True)
+                combined_encoded = pd.get_dummies(combined, drop_first=True)
                 
-                # Reindex to match training columns
+                # Extract the last row (our input)
+                input_encoded = combined_encoded.iloc[[-1]]
+                
                 model_columns = st.session_state['model_columns']
                 input_ready = input_encoded.reindex(columns=model_columns, fill_value=0)
                 
-                # Predict
                 model = st.session_state['model']
                 prediction = model.predict(input_ready)
+                
+                # Get prediction probabilities if available
+                if hasattr(model, 'predict_proba'):
+                    proba = model.predict_proba(input_ready)[0]
+                    prob_low = proba[0] * 100
+                    prob_high = proba[1] * 100
+                else:
+                    prob_low = prob_high = None
+                
                 le = st.session_state['le']
                 result = le.inverse_transform(prediction)[0]
                 
-                if result == ">50K":
-                    st.success(f"Prediction: {result}")
-                else:
-                    st.info(f"Prediction: {result}")
+                st.markdown("<div style='height: 1rem;'></div>", unsafe_allow_html=True)
+                
+                col_result, col_probs = st.columns([1, 1])
+                with col_result:
+                    if result == ">50K":
+                        st.success(f"Predicted Income Level: {result}")
+                    else:
+                        st.info(f"Predicted Income Level: {result}")
+                
+                with col_probs:
+                    if prob_low is not None:
+                        st.markdown(f"""
+                            <div style="background: rgba(255,255,255,0.03); border-radius: 12px; padding: 12px; border: 1px solid rgba(255,255,255,0.06);">
+                                <div style="font-size: 0.7rem; color: #71717A; text-transform: uppercase; margin-bottom: 8px;">Probability</div>
+                                <div style="display: flex; gap: 16px;">
+                                    <div><span style="color: #71717A;"><=50K:</span> <span style="font-weight: 600;">{prob_low:.1f}%</span></div>
+                                    <div><span style="color: #71717A;">>50K:</span> <span style="font-weight: 600;">{prob_high:.1f}%</span></div>
+                                </div>
+                            </div>
+                        """, unsafe_allow_html=True)
 
 # --- Global Sidebar Footer ---
 with st.sidebar:
-    st.markdown("<div style='height: 100px;'></div>", unsafe_allow_html=True)
-    st.markdown("""
-        <div style="background: rgba(255,255,255,0.03); padding: 15px; border-radius: 18px; border: 1px solid rgba(255,255,255,0.05);">
-            <p style="margin:0; font-size:0.7rem; color:#9CA3AF; letter-spacing:0.05em;">SYSTEM STATUS</p>
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px;">
-                <div style="display:flex; align-items:center; gap:6px;">
-                    <div style="width:8px; height:8px; background:#10B981; border-radius:50%; box-shadow:0 0 10px #10B981;"></div>
-                    <span style="font-size:0.85rem; color:#F9FAFB; font-weight:600;">System Online</span>
-                </div>
-                <span style="font-size:0.75rem; color:#9CA3AF;">v1.2.0</span>
-            </div>
-        </div>
-        <div style="text-align:center; padding:15px; opacity:0.4; font-size:0.65rem; color:#9CA3AF;">
-            &copy; 2024 Earnomly Lab
-        </div>
-    """, unsafe_allow_html=True)
-
+    st.markdown("<div style='height: 80px;'></div>", unsafe_allow_html=True)
+    st.markdown(ui_config.render_status_footer(), unsafe_allow_html=True)
