@@ -109,9 +109,6 @@ The UI features a minimalist fintech aesthetic with:
 - Glassmorphism card effects
 - Responsive layout
 
-## License
-
-MIT License - feel free to use and modify for your projects.
 
 ## Author
 
