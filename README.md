@@ -9,6 +9,13 @@ A modern, fintech-styled machine learning dashboard for analyzing and predicting
 
 Earnomly is an interactive web application that provides comprehensive analysis of socioeconomic factors affecting income levels. It combines exploratory data analysis with machine learning models to predict whether an individual's income exceeds $50K annually.
 
+## Project Previews
+
+<p align="center">
+  <img src="assets/projectsnap1.png" width="45%" />
+  <img src="assets/projectsnap2.png" width="45%" />
+</p>
+
 ## Features
 
 ### Data Overview
